@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -24,6 +25,14 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+
+	// JWT Configuration
+	JWTSecretKey          string
+	JWTAccessTokenExpiry  time.Duration
+	JWTRefreshTokenExpiry time.Duration
+
+	// Bcrypt Configuration
+	BcryptCost int
 }
 
 // Load reads configuration from environment variables
@@ -44,11 +53,35 @@ func Load() (*Config, error) {
 		DatabaseURL:    getEnv("DATABASE_URL", ""),
 		MigrationsPath: getEnv("MIGRATIONS_PATH", "migrations"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
+
+		// JWT settings
+		JWTSecretKey: getEnv("JWT_SECRET_KEY", "your-super-secret-jwt-key-change-this-in-production"),
+
+		// Bcrypt settings
+		BcryptCost: getEnvAsInt("BCRYPT_COST", 10),
 	}
+
+	// Parse JWT token expiry durations
+	accessTokenExpiry, err := time.ParseDuration(getEnv("JWT_ACCESS_TOKEN_EXPIRY", "15m"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWT_ACCESS_TOKEN_EXPIRY: %w", err)
+	}
+	cfg.JWTAccessTokenExpiry = accessTokenExpiry
+
+	refreshTokenExpiry, err := time.ParseDuration(getEnv("JWT_REFRESH_TOKEN_EXPIRY", "168h")) // 7 days
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWT_REFRESH_TOKEN_EXPIRY: %w", err)
+	}
+	cfg.JWTRefreshTokenExpiry = refreshTokenExpiry
 
 	// Validate required fields
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+
+	// Validate JWT secret key in production
+	if cfg.Environment == "production" && cfg.JWTSecretKey == "your-super-secret-jwt-key-change-this-in-production" {
+		return nil, fmt.Errorf("JWT_SECRET_KEY must be changed in production")
 	}
 
 	// For convenience, also parse DATABASE_URL components
@@ -75,6 +108,21 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// getEnvAsInt gets an environment variable as an integer with a fallback default value
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultValue
+	}
+
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+
+	return value
 }
 
 // parseDatabaseURL extracts components from a postgres connection string

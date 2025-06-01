@@ -167,7 +167,7 @@ migrate-drop:
 
 # Create a new migration (sequential numbering)
 .PHONY: migrate-create
-migration:
+migrate-create:
 	@if [ -z "$(NAME)" ]; then \
 		echo "Please provide a NAME: make migration NAME=your_migration_NAME"; \
 		exit 1; \
