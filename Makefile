@@ -19,6 +19,9 @@ help:
 	@echo "  make clean       - Clean build artifacts"
 	@echo "  make lint        - Run linter"
 	@echo "  make fmt         - Format code"
+	@echo "  make swagger     - Generate Swagger documentation"
+	@echo "  make run-swagger - Generate docs and run application"
+	@echo "  make install-swagger - Install swagger CLI tool"
 
 # Run the application
 .PHONY: run
@@ -61,6 +64,7 @@ build:
 clean:
 	@echo "Cleaning..."
 	rm -rf bin/
+	rm -rf docs/
 	go clean -cache
 
 # Run linter
@@ -81,7 +85,27 @@ install-tools:
 	@echo "Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+	go install github.com/swaggo/swag/cmd/swag@latest
 	@echo "Tools installed"
+
+# ==================== SWAGGER COMMANDS ====================
+
+# Generate swagger documentation
+.PHONY: swagger
+swagger:
+	@echo "Generating Swagger documentation..."
+	@swag init -g cmd/api/main.go -o docs
+	@echo "Swagger docs generated successfully"
+
+# Generate swagger and run
+.PHONY: run-swagger
+run-swagger: swagger run
+
+# Install swagger if not present
+.PHONY: install-swagger
+install-swagger:
+	@echo "Installing swagger..."
+	@go install github.com/swaggo/swag/cmd/swag@latest
 
 # ==================== MIGRATION COMMANDS ====================
 

@@ -12,6 +12,9 @@ bin/
 # Output of the go coverage tool
 *.out
 
+# Swagger generated files
+docs/
+
 # Go workspace file
 go.work
 
