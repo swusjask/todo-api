@@ -1,4 +1,3 @@
-// cmd/api/main.go
 package main
 
 import (
@@ -20,33 +19,28 @@ import (
 )
 
 func main() {
-	// Load configuration from environment
+	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("Failed to load config:", err)
 	}
 
-	// Establish database connection
+	// Connect to database
 	database, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer database.Close()
 
-	// Run migrations
-	if err := db.RunMigrations(database, cfg.MigrationsPath); err != nil {
-		log.Fatal("Failed to run migrations:", err)
-	}
-
-	// Initialize layers - this is dependency injection without a framework
+	// Initialize layers
 	todoRepo := repository.NewTodoRepository(database)
 	todoService := service.NewTodoService(todoRepo)
 	todoHandler := handlers.NewTodoHandler(todoService)
 
-	// Setup Gin router
+	// Setup router
 	router := setupRouter(cfg, todoHandler)
 
-	// Create HTTP server with proper timeouts
+	// Create HTTP server
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
@@ -55,7 +49,7 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
+	// Start server
 	go func() {
 		log.Printf("Starting server on port %s", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -63,13 +57,13 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
+	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
 
-	// Give outstanding requests 30 seconds to complete
+	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -81,24 +75,19 @@ func main() {
 }
 
 func setupRouter(cfg *config.Config, todoHandler *handlers.TodoHandler) *gin.Engine {
-	// Set Gin mode based on environment
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.Logger())
+	router.Use(middleware.CORS())
 
-	// Add middleware
-	router.Use(gin.Recovery())      // Recover from panics
-	router.Use(middleware.Logger()) // Custom logging middleware
-	router.Use(middleware.CORS())   // Handle CORS
-
-	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 	})
 
-	// API routes
 	api := router.Group("/api/v1")
 	{
 		todos := api.Group("/todos")

@@ -3,8 +3,11 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -25,6 +28,16 @@ type Config struct {
 
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
+	// Try to load .env file, but don't fail if it doesn't exist
+	// This allows the app to work with real environment variables in production
+	if err := godotenv.Load(); err != nil {
+		// Only log if the file exists but can't be read
+		if _, statErr := os.Stat(".env"); statErr == nil {
+			log.Printf("Warning: .env file exists but couldn't be loaded: %v", err)
+		}
+		// If file doesn't exist, that's fine - we'll use actual env vars
+	}
+
 	cfg := &Config{
 		Environment:    getEnv("ENVIRONMENT", "development"),
 		Port:           getEnv("PORT", "8080"),
@@ -39,12 +52,21 @@ func Load() (*Config, error) {
 	}
 
 	// For convenience, also parse DATABASE_URL components
-	// This helps when you need individual connection parameters
 	if err := cfg.parseDatabaseURL(); err != nil {
 		return nil, fmt.Errorf("invalid DATABASE_URL: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// LoadFromFile explicitly loads configuration from a specific .env file
+// This is useful for testing or when you have multiple env files
+func LoadFromFile(filename string) (*Config, error) {
+	if err := godotenv.Load(filename); err != nil {
+		return nil, fmt.Errorf("failed to load env file %s: %w", filename, err)
+	}
+
+	return Load()
 }
 
 // getEnv gets an environment variable with a fallback default value
@@ -56,14 +78,9 @@ func getEnv(key, defaultValue string) string {
 }
 
 // parseDatabaseURL extracts components from a postgres connection string
-// Example: postgres://user:password@localhost:5432/dbname?sslmode=disable
 func (c *Config) parseDatabaseURL() error {
 	// In a real application, you'd use a proper URL parser
-	// This is simplified for demonstration
-	// Consider using github.com/jackc/pgx/v5/stdlib for PostgreSQL URLs
-
 	// For now, we'll trust that DATABASE_URL is properly formatted
-	// In production, use proper parsing
 	c.DBHost = getEnv("DB_HOST", "localhost")
 	c.DBPort, _ = strconv.Atoi(getEnv("DB_PORT", "5432"))
 	c.DBUser = getEnv("DB_USER", "postgres")

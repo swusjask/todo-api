@@ -37,3 +37,6 @@ Thumbs.db
 # Application specific
 *.log
 todo-api
+
+# Temporary files
+tmp/

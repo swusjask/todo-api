@@ -11,40 +11,40 @@ import (
 // This is more informative than Gin's default logger
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Start timer to measure request duration
 		start := time.Now()
-
-		// Store the request path - we'll need it for logging
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 
-		// Process request - this calls the next handler in the chain
 		c.Next()
 
-		// After request is processed, log the details
+		// Prepare all values
+		timestamp := start.Format("2006-01-02 15:04:05")
 		latency := time.Since(start)
 		clientIP := c.ClientIP()
 		method := c.Request.Method
 		statusCode := c.Writer.Status()
 
-		// Add query string if it exists
 		if raw != "" {
 			path = path + "?" + raw
 		}
 
-		// Color-code status codes for better visibility in logs
 		statusColor := getStatusColor(statusCode)
 		methodColor := getMethodColor(method)
-		resetColor := "\033[0m"
+		reset := "\033[0m"
 
-		// Log format: [timestamp] IP | latency | method | path | status
-		fmt.Printf("[%s] %s | %13v | %s %s %s | %s %3d %s\n",
-			start.Format("2006-01-02 15:04:05"),
-			clientIP,
-			latency,
-			methodColor, method, resetColor,
-			path,
-			statusColor, statusCode, resetColor,
+		// Single Printf with exact format string
+		// Count carefully: 10 format specifiers for 10 arguments
+		fmt.Printf("[%s] %-15s | %13v | %s%-7s%s | %-30s | %s%3d%s\n",
+			timestamp,   // %s
+			clientIP,    // %-15s (left-aligned, 15 chars)
+			latency,     // %13v
+			methodColor, // %s
+			method,      // %-7s (left-aligned, 7 chars)
+			reset,       // %s
+			path,        // %-30s (left-aligned, 30 chars)
+			statusColor, // %s
+			statusCode,  // %3d (3 digits)
+			reset,       // %s
 		)
 	}
 }
